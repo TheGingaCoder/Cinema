@@ -2,7 +2,7 @@ import { firebaseConfig } from "./firebase-config.js";
 
 const app = document.querySelector("#app");
 
-const VERSION = "v0.1.0";
+const VERSION = "v0.2.0";
 const SESSIONS_KEY = "cinema-link:sessions";
 const PROJECTOR_SESSION_KEY = "cinema-link:projector-code";
 const CONTROLLER_SESSION_KEY = "cinema-link:controller-code";
