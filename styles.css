@@ -3,9 +3,9 @@
   --ink: #f4f1e8;
   --muted: rgba(244, 241, 232, 0.68);
   --quiet: rgba(244, 241, 232, 0.44);
-  --line: rgba(255, 255, 255, 0.14);
-  --glass: rgba(11, 17, 28, 0.42);
-  --glass-strong: rgba(13, 19, 31, 0.62);
+  --line: rgba(255, 255, 255, 0.1);
+  --glass: rgba(12, 15, 22, 0.72);
+  --glass-strong: rgba(13, 16, 22, 0.86);
   --gold: #dac07b;
   --teal: #5fb7ac;
   --sapphire: #234b91;
@@ -30,9 +30,7 @@ body {
 body {
   margin: 0;
   overflow-x: hidden;
-  background:
-    radial-gradient(circle at 50% 110%, rgba(23, 32, 47, 0.9), transparent 44%),
-    linear-gradient(135deg, #03070e 0%, #07101b 42%, #101116 100%);
+  background: #06080c;
   color: var(--ink);
   letter-spacing: 0;
 }
@@ -47,18 +45,16 @@ body::after {
 }
 
 body::before {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
-  background-size: 3px 3px, 5px 5px;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 3px 3px;
   mix-blend-mode: overlay;
-  opacity: 0.18;
+  opacity: 0.1;
 }
 
 body::after {
   background:
-    radial-gradient(circle at 50% 42%, transparent 0%, transparent 54%, rgba(0, 0, 0, 0.58) 100%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.36));
+    radial-gradient(circle at 50% 42%, transparent 0%, transparent 58%, rgba(0, 0, 0, 0.7) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 20%, transparent 82%, rgba(0, 0, 0, 0.44));
 }
 
 button,
@@ -90,8 +86,8 @@ button {
   min-width: 520px;
   aspect-ratio: 1;
   border-radius: 999px;
-  filter: blur(120px);
-  opacity: 0.36;
+  filter: blur(150px);
+  opacity: 0.12;
   transform: translate3d(0, 0, 0);
   animation: drift-light 36s var(--ease) infinite alternate;
 }
@@ -99,40 +95,38 @@ button {
 .light-field-a {
   left: -18vw;
   top: -18vh;
-  background: rgba(35, 75, 145, 0.74);
+  background: rgba(55, 76, 108, 0.45);
 }
 
 .light-field-b {
   right: -22vw;
   top: 8vh;
-  background: rgba(111, 63, 124, 0.58);
+  background: rgba(92, 74, 104, 0.32);
   animation-duration: 44s;
 }
 
 .light-field-c {
   left: 18vw;
   bottom: -32vh;
-  background: rgba(218, 192, 123, 0.24);
+  background: rgba(157, 139, 92, 0.16);
   animation-duration: 52s;
 }
 
 .light-field-d {
   right: 14vw;
   bottom: -22vh;
-  background: rgba(95, 183, 172, 0.22);
+  background: rgba(83, 124, 118, 0.14);
   animation-duration: 48s;
 }
 
 .glass-form {
   position: absolute;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.025)),
-    rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.025);
   box-shadow:
     0 34px 90px rgba(0, 0, 0, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  opacity: 0.58;
+  opacity: 0.24;
   backdrop-filter: blur(22px);
   transform: translate3d(0, 0, 0);
   animation: float-form 31s linear infinite alternate;
@@ -209,12 +203,10 @@ button {
   padding: clamp(28px, 5vw, 56px);
   border: 1px solid var(--line);
   border-radius: var(--radius-panel);
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.105), rgba(255, 255, 255, 0.025)),
-    var(--glass);
+  background: var(--glass);
   box-shadow:
-    0 30px 100px rgba(0, 0, 0, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    0 24px 80px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(26px) saturate(130%);
 }
 
@@ -264,12 +256,13 @@ h2 {
 
 .role-card,
 .control-card,
-.status-strip,
-.media-strip {
+.projector-monitor {
   border: 1px solid var(--line);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.055);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow:
+    0 18px 52px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(18px);
 }
 
@@ -290,11 +283,11 @@ h2 {
 
 .role-card:hover,
 .role-card:focus-visible {
-  border-color: rgba(218, 192, 123, 0.5);
-  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(244, 241, 232, 0.24);
+  background: rgba(255, 255, 255, 0.065);
   box-shadow:
-    0 18px 54px rgba(218, 192, 123, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    0 18px 54px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
   outline: none;
   transform: translateY(-2px);
 }
@@ -364,20 +357,9 @@ h2 {
 .controller-view {
   display: grid;
   min-height: 100vh;
-  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
-  gap: clamp(18px, 3vw, 34px);
-  align-items: stretch;
-}
-
-.side-panel,
-.main-panel {
-  min-height: calc(100vh - clamp(48px, 8vw, 112px));
-}
-
-.side-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+  grid-template-rows: auto 1fr;
+  gap: clamp(18px, 2.4vw, 28px);
+  align-items: start;
 }
 
 .control-card {
@@ -385,7 +367,7 @@ h2 {
 }
 
 .control-card h2,
-.main-panel h2 {
+.projector-monitor h2 {
   font-size: 1.35rem;
   font-weight: 400;
 }
@@ -416,9 +398,9 @@ h2 {
 }
 
 .text-field:focus {
-  border-color: rgba(95, 183, 172, 0.56);
+  border-color: rgba(244, 241, 232, 0.28);
   background: rgba(0, 0, 0, 0.36);
-  box-shadow: 0 0 0 4px rgba(95, 183, 172, 0.08);
+  box-shadow: 0 0 0 4px rgba(244, 241, 232, 0.05);
 }
 
 .button-row,
@@ -452,29 +434,47 @@ h2 {
 
 .button:hover,
 .button:focus-visible {
-  border-color: rgba(218, 192, 123, 0.46);
+  border-color: rgba(244, 241, 232, 0.28);
   background: rgba(255, 255, 255, 0.11);
-  box-shadow: 0 0 26px rgba(218, 192, 123, 0.11);
+  box-shadow: 0 0 24px rgba(255, 255, 255, 0.055);
   outline: none;
   transform: translateY(-1px);
 }
 
 .button-primary {
-  border-color: rgba(218, 192, 123, 0.38);
-  background: rgba(218, 192, 123, 0.16);
+  border-color: rgba(244, 241, 232, 0.22);
+  background: rgba(244, 241, 232, 0.1);
 }
 
-.main-panel {
+.controller-grid {
   display: grid;
-  align-content: start;
+  grid-template-columns: minmax(240px, 0.8fr) minmax(280px, 1.2fr) minmax(360px, 1.6fr);
   gap: 18px;
 }
 
-.status-strip,
-.media-strip {
+.projector-monitor {
   display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.monitor-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
   gap: 18px;
-  padding: 22px;
+}
+
+.status-pill {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--muted);
+  padding: 0 14px;
+  font-size: 0.78rem;
 }
 
 .status-grid {
@@ -511,14 +511,24 @@ h2 {
 
 .media-preview {
   display: grid;
-  min-height: 300px;
+  min-height: clamp(280px, 45vh, 560px);
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 22px;
-  background:
-    linear-gradient(135deg, rgba(35, 75, 145, 0.12), rgba(95, 183, 172, 0.06)),
-    rgba(0, 0, 0, 0.26);
+  border-radius: 18px;
+  background: #000;
   color: var(--quiet);
+  overflow: hidden;
+}
+
+.media-preview span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 0 16px;
 }
 
 @keyframes drift-light {
@@ -550,20 +560,39 @@ h2 {
   }
 }
 
+@media (max-width: 1100px) {
+  .controller-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .transport-card,
+  .status-card {
+    grid-column: span 2;
+  }
+}
+
 @media (max-width: 820px) {
   .role-grid,
-  .controller-view,
+  .controller-grid,
   .status-grid {
     grid-template-columns: 1fr;
   }
 
-  .side-panel,
-  .main-panel {
-    min-height: auto;
+  .transport-card,
+  .status-card {
+    grid-column: auto;
   }
 
   .role-card {
     min-height: 140px;
+  }
+
+  .view {
+    padding: 20px;
+  }
+
+  .media-preview {
+    min-height: 240px;
   }
 
   .light-field {

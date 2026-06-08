@@ -72,7 +72,20 @@ function renderProjector() {
 function renderController() {
   return `
     <section class="view controller-view">
-      <aside class="side-panel">
+      <section class="projector-monitor">
+        <div class="monitor-header">
+          <div>
+            <p class="kicker">Projector View</p>
+            <h2>Live Output</h2>
+          </div>
+          <span class="status-pill">Standby</span>
+        </div>
+        <div class="media-preview">
+          <span>No media loaded</span>
+        </div>
+      </section>
+
+      <section class="controller-grid">
         <div class="control-card">
           <p class="kicker">Controller</p>
           <h2>Session</h2>
@@ -89,11 +102,20 @@ function renderController() {
             <button class="button" type="button">Clear</button>
           </div>
         </div>
-      </aside>
 
-      <section class="main-panel">
-        <div class="status-strip">
-          <h2>Projector</h2>
+        <div class="control-card transport-card">
+          <h2>Transport</h2>
+          <input class="timeline" type="range" min="0" max="100" value="0" aria-label="Timeline" />
+          <div class="transport-row">
+            <button class="button button-primary" type="button">Play</button>
+            <button class="button" type="button">Pause</button>
+            <button class="button" type="button">Mute</button>
+            <button class="button" type="button">Blackout</button>
+          </div>
+        </div>
+
+        <div class="control-card status-card">
+          <h2>Status</h2>
           <div class="status-grid">
             <div class="status-item">
               <span>Signal</span>
@@ -107,17 +129,6 @@ function renderController() {
               <span>Output</span>
               <strong>Black</strong>
             </div>
-          </div>
-        </div>
-
-        <div class="media-strip">
-          <div class="media-preview">No media loaded</div>
-          <input class="timeline" type="range" min="0" max="100" value="0" aria-label="Timeline" />
-          <div class="transport-row">
-            <button class="button button-primary" type="button">Play</button>
-            <button class="button" type="button">Pause</button>
-            <button class="button" type="button">Mute</button>
-            <button class="button" type="button">Blackout</button>
           </div>
         </div>
       </section>
