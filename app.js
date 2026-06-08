@@ -1,6 +1,12 @@
 const app = document.querySelector("#app");
 
-const projectorCode = "482913";
+const VERSION = "v0.1.0";
+const SESSIONS_KEY = "cinema-link:sessions";
+const PROJECTOR_SESSION_KEY = "cinema-link:projector-code";
+const CONTROLLER_SESSION_KEY = "cinema-link:controller-code";
+const pairingChannel = "BroadcastChannel" in window ? new BroadcastChannel("cinema-link") : null;
+let controllerNotice = "";
+let controllerDraftCode = "";
 
 const routes = {
   "/": renderHome,
@@ -28,6 +34,121 @@ function bindEvents() {
       navigate(href.startsWith("#") ? href.slice(1) : href);
     });
   });
+
+  document.querySelector("[data-action='join-session']")?.addEventListener("click", joinSessionFromInput);
+  document.querySelector("#session-code")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      joinSessionFromInput();
+    }
+  });
+}
+
+function getSessions() {
+  try {
+    return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveSessions(sessions) {
+  localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+  pairingChannel?.postMessage({ type: "sessions-updated" });
+}
+
+function generatePairingCode() {
+  const sessions = getSessions();
+  let code = "";
+
+  do {
+    code = String(Math.floor(100000 + Math.random() * 900000));
+  } while (sessions[code]);
+
+  return code;
+}
+
+function touchSession(code, patch) {
+  const sessions = getSessions();
+  const current = sessions[code] || {
+    code,
+    createdAt: Date.now(),
+    controllerOnline: false,
+    projectorOnline: false,
+  };
+
+  sessions[code] = {
+    ...current,
+    ...patch,
+    updatedAt: Date.now(),
+  };
+
+  saveSessions(sessions);
+  return sessions[code];
+}
+
+function ensureProjectorSession() {
+  const storedCode = sessionStorage.getItem(PROJECTOR_SESSION_KEY);
+  const code = storedCode || generatePairingCode();
+  sessionStorage.setItem(PROJECTOR_SESSION_KEY, code);
+  return touchSession(code, { projectorOnline: true });
+}
+
+function getControllerSession() {
+  const code = sessionStorage.getItem(CONTROLLER_SESSION_KEY);
+  return code ? getSessions()[code] : null;
+}
+
+function joinSessionFromInput() {
+  const input = document.querySelector("#session-code");
+  const code = input?.value.replace(/\D/g, "").slice(0, 6);
+  const session = code ? getSessions()[code] : null;
+
+  if (!input) {
+    return;
+  }
+
+  input.value = code;
+  controllerDraftCode = code;
+
+  if (!session) {
+    input.setAttribute("aria-invalid", "true");
+    controllerNotice = "No active projector found for that code.";
+    render();
+    return;
+  }
+
+  input.removeAttribute("aria-invalid");
+  controllerNotice = "Controller paired.";
+  controllerDraftCode = code;
+  sessionStorage.setItem(CONTROLLER_SESSION_KEY, code);
+  touchSession(code, { controllerOnline: true });
+  render();
+}
+
+function refreshPairedViews() {
+  const path = location.hash.replace("#", "") || "/";
+
+  if (path === "/projector" || path === "/controller") {
+    render();
+  }
+}
+
+function markCurrentRoleOffline() {
+  const path = location.hash.replace("#", "") || "/";
+
+  if (path === "/projector") {
+    const code = sessionStorage.getItem(PROJECTOR_SESSION_KEY);
+    if (code) {
+      touchSession(code, { projectorOnline: false });
+    }
+  }
+
+  if (path === "/controller") {
+    const code = sessionStorage.getItem(CONTROLLER_SESSION_KEY);
+    if (code) {
+      touchSession(code, { controllerOnline: false });
+    }
+  }
 }
 
 function renderHome() {
@@ -48,12 +169,15 @@ function renderHome() {
           </a>
         </div>
       </div>
-      <div class="version-tag">v0.1.0</div>
+      <div class="version-tag">${VERSION}</div>
     </section>
   `;
 }
 
 function renderProjector() {
+  const session = ensureProjectorSession();
+  const pairingState = session.controllerOnline ? "Controller connected" : "Awaiting controller";
+
   return `
     <section class="projector-view">
       <div class="projector-stage">
@@ -62,8 +186,8 @@ function renderProjector() {
       <div class="standby ambient-panel">
         <div>
           <p class="kicker">Projector</p>
-          <div class="pairing-code">${projectorCode}</div>
-          <p class="microcopy">Awaiting controller</p>
+          <div class="pairing-code">${session.code}</div>
+          <p class="microcopy">${pairingState}</p>
         </div>
       </div>
     </section>
@@ -71,6 +195,15 @@ function renderProjector() {
 }
 
 function renderController() {
+  const savedCode = controllerDraftCode || sessionStorage.getItem(CONTROLLER_SESSION_KEY) || "";
+  const session = getControllerSession();
+  const hasProjector = Boolean(session?.projectorOnline);
+  const signal = hasProjector ? "Connected" : savedCode ? "No projector" : "Standby";
+  const state = session?.controllerOnline ? "Paired" : "Idle";
+  const output = hasProjector ? "Ready" : "Black";
+  const sessionNote = controllerNotice || (hasProjector ? "Projector link is active." : "Enter the code shown on the projector.");
+  const invalidState = controllerNotice.startsWith("No active") ? 'aria-invalid="true"' : "";
+
   return `
     <section class="view controller-view">
       <section class="projector-monitor">
@@ -79,7 +212,7 @@ function renderController() {
             <p class="kicker">Projector View</p>
             <h2>Live Output</h2>
           </div>
-          <span class="status-pill">Standby</span>
+          <span class="status-pill">${signal}</span>
         </div>
         <div class="media-preview">
           <span>No media loaded</span>
@@ -91,7 +224,11 @@ function renderController() {
           <p class="kicker">Controller</p>
           <h2>Session</h2>
           <label class="field-label" for="session-code">Pairing Code</label>
-          <input class="text-field" id="session-code" value="${projectorCode}" inputmode="numeric" />
+          <input class="text-field" id="session-code" value="${savedCode}" inputmode="numeric" maxlength="6" placeholder="000000" ${invalidState} />
+          <p class="session-note">${sessionNote}</p>
+          <div class="button-row media-actions">
+            <button class="button button-primary" type="button" data-action="join-session">Connect</button>
+          </div>
         </div>
 
         <div class="control-card">
@@ -128,15 +265,15 @@ function renderController() {
           <div class="status-grid">
             <div class="status-item">
               <span>Signal</span>
-              <strong>Standby</strong>
+              <strong>${signal}</strong>
             </div>
             <div class="status-item">
               <span>State</span>
-              <strong>Idle</strong>
+              <strong>${state}</strong>
             </div>
             <div class="status-item">
               <span>Output</span>
-              <strong>Black</strong>
+              <strong>${output}</strong>
             </div>
           </div>
         </div>
@@ -146,4 +283,11 @@ function renderController() {
 }
 
 window.addEventListener("hashchange", render);
+window.addEventListener("storage", (event) => {
+  if (event.key === SESSIONS_KEY) {
+    refreshPairedViews();
+  }
+});
+pairingChannel?.addEventListener("message", refreshPairedViews);
+window.addEventListener("beforeunload", markCurrentRoleOffline);
 render();

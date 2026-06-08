@@ -420,6 +420,19 @@ h2 {
   box-shadow: 0 0 0 4px rgba(244, 241, 232, 0.05);
 }
 
+.text-field[aria-invalid="true"] {
+  border-color: rgba(218, 116, 116, 0.55);
+  box-shadow: 0 0 0 4px rgba(218, 116, 116, 0.08);
+}
+
+.session-note {
+  min-height: 20px;
+  margin: 10px 0 0;
+  color: var(--quiet);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .button-row,
 .transport-row {
   display: flex;
