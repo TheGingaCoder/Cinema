@@ -48,6 +48,7 @@ function renderHome() {
           </a>
         </div>
       </div>
+      <div class="version-tag">v0.1.0</div>
     </section>
   `;
 }
@@ -107,10 +108,18 @@ function renderController() {
           <h2>Transport</h2>
           <input class="timeline" type="range" min="0" max="100" value="0" aria-label="Timeline" />
           <div class="transport-row">
-            <button class="button button-primary" type="button">Play</button>
-            <button class="button" type="button">Pause</button>
-            <button class="button" type="button">Mute</button>
-            <button class="button" type="button">Blackout</button>
+            <button class="button icon-button button-primary" type="button" aria-label="Play">
+              <i class="fa-solid fa-play" aria-hidden="true"></i>
+            </button>
+            <button class="button icon-button" type="button" aria-label="Pause">
+              <i class="fa-solid fa-pause" aria-hidden="true"></i>
+            </button>
+            <button class="button icon-button" type="button" aria-label="Mute">
+              <i class="fa-solid fa-volume-xmark" aria-hidden="true"></i>
+            </button>
+            <button class="button icon-button" type="button" aria-label="Blackout">
+              <i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i>
+            </button>
           </div>
         </div>
 
