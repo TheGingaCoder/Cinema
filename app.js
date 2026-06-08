@@ -2,13 +2,14 @@ import { firebaseConfig } from "./firebase-config.js";
 
 const app = document.querySelector("#app");
 
-const VERSION = "v0.2.0";
+const VERSION = "v0.3.0";
 const SESSIONS_KEY = "cinema-link:sessions";
 const PROJECTOR_SESSION_KEY = "cinema-link:projector-code";
 const CONTROLLER_SESSION_KEY = "cinema-link:controller-code";
 const pairingChannel = "BroadcastChannel" in window ? new BroadcastChannel("cinema-link") : null;
 let controllerNotice = "";
 let controllerDraftCode = "";
+let controllerMediaDraft = "";
 let sessionsCache = {};
 let realtimeDb = null;
 let firebaseReady = false;
@@ -41,9 +42,16 @@ function bindEvents() {
   });
 
   document.querySelector("[data-action='join-session']")?.addEventListener("click", joinSessionFromInput);
+  document.querySelector("[data-action='load-media']")?.addEventListener("click", loadMediaFromInput);
+  document.querySelector("[data-action='clear-media']")?.addEventListener("click", clearSessionMedia);
   document.querySelector("#session-code")?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       joinSessionFromInput();
+    }
+  });
+  document.querySelector("#media-url")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      loadMediaFromInput();
     }
   });
 }
@@ -147,6 +155,90 @@ function getControllerSession() {
   return code ? getSessions()[code] : null;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function getYouTubeId(value) {
+  try {
+    const normalizedValue = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    const url = new URL(normalizedValue);
+    const host = url.hostname.replace(/^www\./, "");
+
+    if (host === "youtu.be") {
+      return url.pathname.split("/").filter(Boolean)[0] || null;
+    }
+
+    if (host.endsWith("youtube.com")) {
+      if (url.pathname === "/watch") {
+        return url.searchParams.get("v");
+      }
+
+      const parts = url.pathname.split("/").filter(Boolean);
+      if (["embed", "shorts", "live"].includes(parts[0])) {
+        return parts[1] || null;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function createMediaFromUrl(value) {
+  const sourceUrl = value.trim();
+  const youtubeId = getYouTubeId(sourceUrl);
+
+  if (!youtubeId) {
+    return null;
+  }
+
+  return {
+    type: "youtube",
+    sourceUrl,
+    youtubeId,
+    loadedAt: Date.now(),
+  };
+}
+
+function getYouTubeEmbedUrl(youtubeId, { muted = false } = {}) {
+  const params = new URLSearchParams({
+    autoplay: "1",
+    controls: "0",
+    disablekb: "1",
+    modestbranding: "1",
+    playsinline: "1",
+    rel: "0",
+  });
+
+  if (muted) {
+    params.set("mute", "1");
+  }
+
+  return `https://www.youtube.com/embed/${encodeURIComponent(youtubeId)}?${params.toString()}`;
+}
+
+function renderMediaSurface(media, label = "Blackout active", options = {}) {
+  if (media?.type === "youtube" && media.youtubeId) {
+    return `
+      <iframe
+        class="media-frame"
+        src="${getYouTubeEmbedUrl(media.youtubeId, options)}"
+        title="YouTube media output"
+        allow="autoplay; encrypted-media; picture-in-picture"
+        referrerpolicy="strict-origin-when-cross-origin"
+      ></iframe>
+    `;
+  }
+
+  return `<span>${escapeHtml(label)}</span>`;
+}
+
 async function joinSessionFromInput() {
   const input = document.querySelector("#session-code");
   const code = input?.value.replace(/\D/g, "").slice(0, 6);
@@ -171,6 +263,47 @@ async function joinSessionFromInput() {
   controllerDraftCode = code;
   sessionStorage.setItem(CONTROLLER_SESSION_KEY, code);
   touchSession(code, { controllerOnline: true });
+  render();
+}
+
+function loadMediaFromInput() {
+  const input = document.querySelector("#media-url");
+  const code = sessionStorage.getItem(CONTROLLER_SESSION_KEY);
+  const session = getControllerSession();
+  const rawUrl = input?.value || "";
+  const media = createMediaFromUrl(rawUrl);
+  controllerMediaDraft = rawUrl;
+
+  if (!code || !session?.projectorOnline) {
+    controllerNotice = "Pair with a projector before loading media.";
+    render();
+    return;
+  }
+
+  if (!media) {
+    controllerNotice = "Paste a valid YouTube URL.";
+    render();
+    return;
+  }
+
+  controllerMediaDraft = media.sourceUrl;
+  controllerNotice = "YouTube media loaded.";
+  touchSession(code, { media, controllerOnline: true });
+  render();
+}
+
+function clearSessionMedia() {
+  const code = sessionStorage.getItem(CONTROLLER_SESSION_KEY);
+
+  if (!code) {
+    controllerNotice = "Pair with a projector before clearing media.";
+    render();
+    return;
+  }
+
+  controllerMediaDraft = "";
+  controllerNotice = "Projector returned to black.";
+  touchSession(code, { media: null, controllerOnline: true });
   render();
 }
 
@@ -227,11 +360,12 @@ function renderProjector() {
   const session = ensureProjectorSession();
   const pairingState = session.controllerOnline ? "Controller connected" : "Awaiting controller";
   const pairedClass = session.controllerOnline ? "projector-paired" : "";
+  const projectorOutput = renderMediaSurface(session.media, "Blackout active");
 
   return `
     <section class="projector-view ${pairedClass}">
       <div class="projector-stage">
-        <video class="projector-media" playsinline preload="metadata" aria-label="Projector output"></video>
+        ${projectorOutput}
       </div>
       <div class="standby ambient-panel">
         <div>
@@ -250,10 +384,12 @@ function renderController() {
   const hasProjector = Boolean(session?.projectorOnline);
   const signal = hasProjector ? "Connected" : savedCode ? "No projector" : "Standby";
   const state = session?.controllerOnline ? "Paired" : "Idle";
-  const output = hasProjector ? "Ready" : "Black";
+  const output = session?.media?.type === "youtube" ? "YouTube" : hasProjector ? "Ready" : "Black";
   const sessionNote = controllerNotice || (hasProjector ? "Projector link is active." : "Enter the code shown on the projector.");
   const invalidState = controllerNotice.startsWith("No active") ? 'aria-invalid="true"' : "";
-  const previewText = hasProjector ? "Blackout active" : "No media loaded";
+  const mediaValue = controllerMediaDraft || session?.media?.sourceUrl || "";
+  const previewLabel = hasProjector ? "Blackout active" : "No media loaded";
+  const previewOutput = renderMediaSurface(session?.media, previewLabel, { muted: true });
 
   return `
     <section class="view controller-view">
@@ -266,7 +402,7 @@ function renderController() {
           <span class="status-pill">${signal}</span>
         </div>
         <div class="media-preview">
-          <span>${previewText}</span>
+          ${previewOutput}
         </div>
       </section>
 
@@ -285,10 +421,10 @@ function renderController() {
         <div class="control-card">
           <h2>Media</h2>
           <label class="field-label" for="media-url">Source URL</label>
-          <input class="text-field" id="media-url" placeholder="https://..." />
+          <input class="text-field" id="media-url" value="${escapeHtml(mediaValue)}" placeholder="https://youtube.com/watch?v=..." />
           <div class="button-row media-actions">
-            <button class="button button-primary" type="button">Load</button>
-            <button class="button" type="button">Clear</button>
+            <button class="button button-primary" type="button" data-action="load-media">Load</button>
+            <button class="button" type="button" data-action="clear-media">Clear</button>
           </div>
         </div>
 

@@ -333,11 +333,17 @@ h2 {
   background: #000;
 }
 
-.projector-media {
+.projector-media,
+.media-frame {
   width: 100vw;
   height: 100vh;
+  border: 0;
   object-fit: contain;
   background: #000;
+}
+
+.media-frame {
+  display: block;
 }
 
 .projector-paired .standby {
@@ -477,7 +483,7 @@ h2 {
     border-color 260ms var(--ease),
     background 260ms var(--ease),
     box-shadow 260ms var(--ease),
-  transform 260ms var(--ease);
+    transform 260ms var(--ease);
 }
 
 .icon-button {
@@ -591,6 +597,11 @@ h2 {
   background: #000;
   color: var(--quiet);
   overflow: hidden;
+}
+
+.media-preview .media-frame {
+  width: 100%;
+  height: 100%;
 }
 
 .media-preview span {
