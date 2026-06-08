@@ -2,8 +2,9 @@ export const firebaseConfig = null;
 
 /*
 Replace null with your Firebase web app config when you are ready for
-cross-device pairing. The config is not a password; Firebase secures access
-with Realtime Database rules.
+cross-device pairing. This app uses the Realtime Database REST API, so the
+databaseURL field is the important part. The config is not a password;
+Firebase secures access with Realtime Database rules.
 
 export const firebaseConfig = {
   apiKey: "YOUR_API_KEY",

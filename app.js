@@ -2,17 +2,19 @@ import { firebaseConfig } from "./firebase-config.js";
 
 const app = document.querySelector("#app");
 
-const VERSION = "v0.3.0";
+const VERSION = "v0.4.0";
 const SESSIONS_KEY = "cinema-link:sessions";
 const PROJECTOR_SESSION_KEY = "cinema-link:projector-code";
 const CONTROLLER_SESSION_KEY = "cinema-link:controller-code";
+const REMOTE_POLL_INTERVAL = 1000;
 const pairingChannel = "BroadcastChannel" in window ? new BroadcastChannel("cinema-link") : null;
 let controllerNotice = "";
 let controllerDraftCode = "";
 let controllerMediaDraft = "";
 let sessionsCache = {};
-let realtimeDb = null;
 let firebaseReady = false;
+let firebaseDatabaseUrl = "";
+let remotePollTimer = null;
 
 const routes = {
   "/": renderHome,
@@ -57,24 +59,20 @@ function bindEvents() {
 }
 
 async function initRealtime() {
-  if (!firebaseConfig) {
+  firebaseDatabaseUrl = firebaseConfig?.databaseURL?.replace(/\/$/, "") || "";
+
+  if (!firebaseDatabaseUrl) {
     sessionsCache = getLocalSessions();
     return;
   }
 
-  const [{ initializeApp }, database] = await Promise.all([
-    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
-    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js"),
-  ]);
-
-  const firebaseApp = initializeApp(firebaseConfig);
-  realtimeDb = database.getDatabase(firebaseApp);
   firebaseReady = true;
-
-  database.onValue(database.ref(realtimeDb, "sessions"), (snapshot) => {
-    sessionsCache = snapshot.val() || {};
-    refreshPairedViews();
-  });
+  await syncRemoteSessions();
+  remotePollTimer = window.setInterval(() => {
+    syncRemoteSessions().catch((error) => {
+      console.warn("Remote session sync failed.", error);
+    });
+  }, REMOTE_POLL_INTERVAL);
 }
 
 function getLocalSessions() {
@@ -106,13 +104,48 @@ function generatePairingCode() {
 }
 
 async function readRemoteSession(code) {
-  if (!firebaseReady || !realtimeDb) {
+  if (!firebaseReady || !firebaseDatabaseUrl) {
     return getSessions()[code] || null;
   }
 
-  const database = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js");
-  const snapshot = await database.get(database.ref(realtimeDb, `sessions/${code}`));
-  return snapshot.val();
+  const response = await fetch(`${firebaseDatabaseUrl}/sessions/${code}.json`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Unable to read session ${code}`);
+  }
+
+  return response.json();
+}
+
+async function syncRemoteSessions() {
+  if (!firebaseReady || !firebaseDatabaseUrl) {
+    return;
+  }
+
+  const response = await fetch(`${firebaseDatabaseUrl}/sessions.json`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Unable to sync remote sessions");
+  }
+
+  sessionsCache = (await response.json()) || {};
+  refreshPairedViews();
+}
+
+function saveRemoteSession(code, session) {
+  fetch(`${firebaseDatabaseUrl}/sessions/${code}.json`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(session),
+  }).catch((error) => {
+    console.warn("Remote session save failed.", error);
+  });
 }
 
 function touchSession(code, patch) {
@@ -132,10 +165,8 @@ function touchSession(code, patch) {
 
   sessionsCache = sessions;
 
-  if (firebaseReady && realtimeDb) {
-    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js").then((database) => {
-      database.set(database.ref(realtimeDb, `sessions/${code}`), sessions[code]);
-    });
+  if (firebaseReady && firebaseDatabaseUrl) {
+    saveRemoteSession(code, sessions[code]);
   } else {
     saveLocalSessions(sessions);
   }
@@ -481,6 +512,12 @@ window.addEventListener("beforeunload", markCurrentRoleOffline);
 initRealtime()
   .catch((error) => {
     console.warn("Realtime setup failed. Falling back to local pairing.", error);
+    firebaseReady = false;
+    firebaseDatabaseUrl = "";
+    if (remotePollTimer) {
+      window.clearInterval(remotePollTimer);
+      remotePollTimer = null;
+    }
     sessionsCache = getLocalSessions();
   })
   .finally(render);
