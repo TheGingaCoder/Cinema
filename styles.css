@@ -375,6 +375,14 @@ h2 {
   font-size: 0.92rem;
 }
 
+.mode-note {
+  margin: 14px 0 0;
+  color: rgba(244, 241, 232, 0.34);
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .controller-view {
   display: grid;
   width: min(1440px, 100%);
@@ -441,6 +449,19 @@ h2 {
   color: var(--quiet);
   font-size: 0.82rem;
   line-height: 1.45;
+}
+
+.mode-badge {
+  align-self: flex-start;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--quiet);
+  padding: 7px 11px;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .button-row,

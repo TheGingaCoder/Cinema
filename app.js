@@ -2,7 +2,7 @@ import { firebaseConfig } from "./firebase-config.js";
 
 const app = document.querySelector("#app");
 
-const VERSION = "v0.4.0";
+const VERSION = "v0.4.1";
 const SESSIONS_KEY = "cinema-link:sessions";
 const PROJECTOR_SESSION_KEY = "cinema-link:projector-code";
 const CONTROLLER_SESSION_KEY = "cinema-link:controller-code";
@@ -85,6 +85,10 @@ function getLocalSessions() {
 
 function getSessions() {
   return firebaseReady ? sessionsCache : getLocalSessions();
+}
+
+function getConnectionModeLabel() {
+  return firebaseReady ? "Remote pairing active" : "Local-only pairing";
 }
 
 function saveLocalSessions(sessions) {
@@ -284,7 +288,9 @@ async function joinSessionFromInput() {
 
   if (!session) {
     input.setAttribute("aria-invalid", "true");
-    controllerNotice = "No active projector found for that code.";
+    controllerNotice = firebaseReady
+      ? "No active projector found for that code."
+      : "Remote pairing is not configured yet.";
     render();
     return;
   }
@@ -392,6 +398,7 @@ function renderProjector() {
   const pairingState = session.controllerOnline ? "Controller connected" : "Awaiting controller";
   const pairedClass = session.controllerOnline ? "projector-paired" : "";
   const projectorOutput = renderMediaSurface(session.media, "Blackout active");
+  const modeLabel = getConnectionModeLabel();
 
   return `
     <section class="projector-view ${pairedClass}">
@@ -403,6 +410,7 @@ function renderProjector() {
           <p class="kicker">Projector</p>
           <div class="pairing-code">${session.code}</div>
           <p class="microcopy">${pairingState}</p>
+          <p class="mode-note">${modeLabel}</p>
         </div>
       </div>
     </section>
@@ -416,8 +424,12 @@ function renderController() {
   const signal = hasProjector ? "Connected" : savedCode ? "No projector" : "Standby";
   const state = session?.controllerOnline ? "Paired" : "Idle";
   const output = session?.media?.type === "youtube" ? "YouTube" : hasProjector ? "Ready" : "Black";
-  const sessionNote = controllerNotice || (hasProjector ? "Projector link is active." : "Enter the code shown on the projector.");
-  const invalidState = controllerNotice.startsWith("No active") ? 'aria-invalid="true"' : "";
+  const modeLabel = getConnectionModeLabel();
+  const defaultSessionNote = firebaseReady
+    ? "Enter the code shown on the projector."
+    : "Firebase is not configured, so Chrome cannot pair with Minecraft yet.";
+  const sessionNote = controllerNotice || (hasProjector ? "Projector link is active." : defaultSessionNote);
+  const invalidState = controllerNotice.startsWith("No active") || controllerNotice.startsWith("Remote") ? 'aria-invalid="true"' : "";
   const mediaValue = controllerMediaDraft || session?.media?.sourceUrl || "";
   const previewLabel = hasProjector ? "Blackout active" : "No media loaded";
   const previewOutput = renderMediaSurface(session?.media, previewLabel, { muted: true });
@@ -441,6 +453,7 @@ function renderController() {
         <div class="control-card">
           <p class="kicker">Controller</p>
           <h2>Session</h2>
+          <div class="mode-badge">${modeLabel}</div>
           <label class="field-label" for="session-code">Pairing Code</label>
           <input class="text-field" id="session-code" value="${savedCode}" inputmode="numeric" maxlength="6" placeholder="000000" ${invalidState} />
           <p class="session-note">${sessionNote}</p>
