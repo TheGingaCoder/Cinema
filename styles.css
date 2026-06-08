@@ -340,6 +340,10 @@ h2 {
   background: #000;
 }
 
+.projector-paired .standby {
+  display: none;
+}
+
 .standby {
   position: relative;
   z-index: 2;

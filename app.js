@@ -1,3 +1,5 @@
+import { firebaseConfig } from "./firebase-config.js";
+
 const app = document.querySelector("#app");
 
 const VERSION = "v0.1.0";
@@ -7,6 +9,9 @@ const CONTROLLER_SESSION_KEY = "cinema-link:controller-code";
 const pairingChannel = "BroadcastChannel" in window ? new BroadcastChannel("cinema-link") : null;
 let controllerNotice = "";
 let controllerDraftCode = "";
+let sessionsCache = {};
+let realtimeDb = null;
+let firebaseReady = false;
 
 const routes = {
   "/": renderHome,
@@ -43,7 +48,28 @@ function bindEvents() {
   });
 }
 
-function getSessions() {
+async function initRealtime() {
+  if (!firebaseConfig) {
+    sessionsCache = getLocalSessions();
+    return;
+  }
+
+  const [{ initializeApp }, database] = await Promise.all([
+    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
+    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js"),
+  ]);
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  realtimeDb = database.getDatabase(firebaseApp);
+  firebaseReady = true;
+
+  database.onValue(database.ref(realtimeDb, "sessions"), (snapshot) => {
+    sessionsCache = snapshot.val() || {};
+    refreshPairedViews();
+  });
+}
+
+function getLocalSessions() {
   try {
     return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || {};
   } catch {
@@ -51,7 +77,11 @@ function getSessions() {
   }
 }
 
-function saveSessions(sessions) {
+function getSessions() {
+  return firebaseReady ? sessionsCache : getLocalSessions();
+}
+
+function saveLocalSessions(sessions) {
   localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
   pairingChannel?.postMessage({ type: "sessions-updated" });
 }
@@ -65,6 +95,16 @@ function generatePairingCode() {
   } while (sessions[code]);
 
   return code;
+}
+
+async function readRemoteSession(code) {
+  if (!firebaseReady || !realtimeDb) {
+    return getSessions()[code] || null;
+  }
+
+  const database = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js");
+  const snapshot = await database.get(database.ref(realtimeDb, `sessions/${code}`));
+  return snapshot.val();
 }
 
 function touchSession(code, patch) {
@@ -82,7 +122,16 @@ function touchSession(code, patch) {
     updatedAt: Date.now(),
   };
 
-  saveSessions(sessions);
+  sessionsCache = sessions;
+
+  if (firebaseReady && realtimeDb) {
+    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js").then((database) => {
+      database.set(database.ref(realtimeDb, `sessions/${code}`), sessions[code]);
+    });
+  } else {
+    saveLocalSessions(sessions);
+  }
+
   return sessions[code];
 }
 
@@ -98,10 +147,10 @@ function getControllerSession() {
   return code ? getSessions()[code] : null;
 }
 
-function joinSessionFromInput() {
+async function joinSessionFromInput() {
   const input = document.querySelector("#session-code");
   const code = input?.value.replace(/\D/g, "").slice(0, 6);
-  const session = code ? getSessions()[code] : null;
+  const session = code ? await readRemoteSession(code) : null;
 
   if (!input) {
     return;
@@ -177,9 +226,10 @@ function renderHome() {
 function renderProjector() {
   const session = ensureProjectorSession();
   const pairingState = session.controllerOnline ? "Controller connected" : "Awaiting controller";
+  const pairedClass = session.controllerOnline ? "projector-paired" : "";
 
   return `
-    <section class="projector-view">
+    <section class="projector-view ${pairedClass}">
       <div class="projector-stage">
         <video class="projector-media" playsinline preload="metadata" aria-label="Projector output"></video>
       </div>
@@ -203,6 +253,7 @@ function renderController() {
   const output = hasProjector ? "Ready" : "Black";
   const sessionNote = controllerNotice || (hasProjector ? "Projector link is active." : "Enter the code shown on the projector.");
   const invalidState = controllerNotice.startsWith("No active") ? 'aria-invalid="true"' : "";
+  const previewText = hasProjector ? "Blackout active" : "No media loaded";
 
   return `
     <section class="view controller-view">
@@ -215,7 +266,7 @@ function renderController() {
           <span class="status-pill">${signal}</span>
         </div>
         <div class="media-preview">
-          <span>No media loaded</span>
+          <span>${previewText}</span>
         </div>
       </section>
 
@@ -285,9 +336,15 @@ function renderController() {
 window.addEventListener("hashchange", render);
 window.addEventListener("storage", (event) => {
   if (event.key === SESSIONS_KEY) {
+    sessionsCache = getLocalSessions();
     refreshPairedViews();
   }
 });
 pairingChannel?.addEventListener("message", refreshPairedViews);
 window.addEventListener("beforeunload", markCurrentRoleOffline);
-render();
+initRealtime()
+  .catch((error) => {
+    console.warn("Realtime setup failed. Falling back to local pairing.", error);
+    sessionsCache = getLocalSessions();
+  })
+  .finally(render);
